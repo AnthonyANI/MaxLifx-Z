@@ -18,11 +18,12 @@ namespace MaxLifx.Controllers
     public class MaxLifxBulbController
     {
         // Network details
-        UdpClient _receivingUdpClient;
-        string _localIp = Utils.LocalIPAddress();
-        Socket _sendingSocket;
-        IPAddress _sendToAddress;
-        IPEndPoint _sendingEndPoint;
+        private UdpClient _receivingUdpClient;
+        private string _localIp = Utils.LocalIPAddress();
+        private IPAddress _sendToAddress;
+        private IPEndPoint _localEndPoint;
+        private IPEndPoint _broadcastEndPoint;
+        private IPEndPoint _remoteEndPoint;
 
         // List of all bulbs discovered
         public List<Bulb> Bulbs = new List<Bulb>();
@@ -34,7 +35,8 @@ namespace MaxLifx.Controllers
             var bulb = Bulbs.Single(x => x.Label == label);
             SendPayloadToMacAddress(payload, bulb.MacAddress, bulb.IpAddress);
             // this updates the bulb monitor, skip for multizone lights
-            if (updateBox){
+            if (updateBox)
+            {
                 ColourSet?.Invoke(new LabelAndColourPayload() { Label = label, Payload = payload }, null);
             }
         }
@@ -50,10 +52,10 @@ namespace MaxLifx.Controllers
             //sendingSocket.SendTo(sendData, sendingEndPoint);
             //sendingSocket.Dispose();
 
-            var a = new UdpClient();
-            a.Connect(sendingEndPoint);
-            a.Send(sendData, sendData.Length);
-            a.Close();
+            var _sendingUdpClient = new UdpClient();
+            _sendingUdpClient.Connect(sendingEndPoint);
+            _sendingUdpClient.Send(sendData, sendData.Length);
+            _sendingUdpClient.Close();
         }
 
         // The following is based on https://github.com/PhilWheat/LIFX-Control
@@ -64,17 +66,22 @@ namespace MaxLifx.Controllers
             byte[] sendData = Utils.StringToByteArray(PacketFactory.GetPacket(new byte[8], payload));
             if (ip != "") _localIp = ip;
 
-            var a = new UdpClient();
-            a.Connect(_sendingEndPoint);
-            a.Send(sendData, sendData.Length);
-            a.Close();
+            var _sendingUdpClient = new UdpClient();
+            _sendingUdpClient.ExclusiveAddressUse = false;
+            _sendingUdpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            _sendingUdpClient.Client.Bind(_localEndPoint);
+            _sendingUdpClient.Connect(_broadcastEndPoint);
+            _sendingUdpClient.Send(sendData, sendData.Length);
+            _sendingUdpClient.Close();
 
             //_sendingSocket.SendTo(sendData, _sendingEndPoint);
 
             // Listen for replies
-            IPEndPoint remoteIpEndPoint = new IPEndPoint(IPAddress.Any, 0);
-            _receivingUdpClient = new UdpClient(56700);
-            
+            _receivingUdpClient = new UdpClient();
+            _receivingUdpClient.ExclusiveAddressUse = false;
+            _receivingUdpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            _receivingUdpClient.Client.Bind(_localEndPoint);
+
             byte[] receivebytes;
 
             // Pause for a second to allow for slow bulb responses - not uncommmon :/
@@ -84,13 +91,15 @@ namespace MaxLifx.Controllers
             while (_receivingUdpClient.Available > 0)
             {
                 // Get the outstanding bytes
-                receivebytes = _receivingUdpClient.Receive(ref remoteIpEndPoint);
+                receivebytes = _receivingUdpClient.Receive(ref _remoteEndPoint);
+
+                Console.WriteLine(receivebytes);
 
                 // Get the MAC address of the bulb replying
                 var macAddress = Utils.ByteArrayToString(receivebytes).Substring(16, 12);
                 if (macAddress != "000000000000")
                 {
-                    var newBulb = new Bulb() {MacAddress = macAddress, IpAddress = remoteIpEndPoint.Address.ToString()};
+                    var newBulb = new Bulb() { MacAddress = macAddress, IpAddress = _remoteEndPoint.Address.ToString() };
 
                     // Create a new Bulb object
                     if (Bulbs.Count(x => x.MacAddress == macAddress) == 0)
@@ -106,15 +115,18 @@ namespace MaxLifx.Controllers
             GetColourZonesPayload ColourZonesPayload = new GetColourZonesPayload();
             foreach (var bulb in Bulbs)
             {
-                a = new UdpClient();
-                a.Connect(_sendingEndPoint);
+                _sendingUdpClient = new UdpClient();
+                _sendingUdpClient.ExclusiveAddressUse = false;
+                _sendingUdpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                _sendingUdpClient.Client.Bind(_localEndPoint);
+                _sendingUdpClient.Connect(_broadcastEndPoint);
                 // Send label request to a specific bulb
                 sendData = Utils.StringToByteArray(PacketFactory.GetPacket(Utils.StringToByteArray(bulb.MacAddress + "0000"), labelPayload));
-                a.Send(sendData, sendData.Length);
+                _sendingUdpClient.Send(sendData, sendData.Length);
                 // Send version request to a specific bulb
                 //sendData = Utils.StringToByteArray(PacketFactory.GetPacket(Utils.StringToByteArray(bulb.MacAddress + "0000"), versionPayload));
                 //a.Send(sendData, sendData.Length);
-                a.Close();
+                _sendingUdpClient.Close();
 
                 //_sendingSocket.SendTo(sendData, _sendingEndPoint);
 
@@ -122,12 +134,12 @@ namespace MaxLifx.Controllers
 
                 while (_receivingUdpClient.Available > 0)
                 {
-                    receivebytes = _receivingUdpClient.Receive(ref remoteIpEndPoint);
+                    receivebytes = _receivingUdpClient.Receive(ref _remoteEndPoint);
                     if (receivebytes[0] == 0x44)
                     {
                         // Parse the received label and mark it against the bulb
                         var label1 = Utils.HexToAscii(Utils.ByteArrayToString(receivebytes).Substring(36 * 2));
-                        bulb.Label = label1.Substring(0,label1.IndexOf('\0'));
+                        bulb.Label = label1.Substring(0, label1.IndexOf('\0'));
                     }
                     /* if (receivebytes[0] == 48)
                     {
@@ -139,26 +151,29 @@ namespace MaxLifx.Controllers
             // seperating the 2 seems more reliable
             foreach (var bulb in Bulbs)
             {
-                    a = new UdpClient();
-                    a.Connect(_sendingEndPoint);
-                    // Send zone request
-                    sendData = Utils.StringToByteArray(PacketFactory.GetPacket(Utils.StringToByteArray(bulb.MacAddress + "0000"), ColourZonesPayload));
-                    a.Send(sendData, sendData.Length);
-                    a.Close();
+                _sendingUdpClient = new UdpClient();
+                _sendingUdpClient.ExclusiveAddressUse = false;
+                _sendingUdpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                _sendingUdpClient.Client.Bind(_localEndPoint);
+                _sendingUdpClient.Connect(_broadcastEndPoint);
+                // Send zone request
+                sendData = Utils.StringToByteArray(PacketFactory.GetPacket(Utils.StringToByteArray(bulb.MacAddress + "0000"), ColourZonesPayload));
+                _sendingUdpClient.Send(sendData, sendData.Length);
+                _sendingUdpClient.Close();
 
-                    //_sendingSocket.SendTo(sendData, _sendingEndPoint);
+                //_sendingSocket.SendTo(sendData, _sendingEndPoint);
 
-                    Thread.Sleep(1000);
+                Thread.Sleep(1000);
 
-                    while (_receivingUdpClient.Available > 0)
+                while (_receivingUdpClient.Available > 0)
+                {
+                    receivebytes = _receivingUdpClient.Receive(ref _remoteEndPoint);
+                    if (receivebytes[0] == 46)
                     {
-                        receivebytes = _receivingUdpClient.Receive(ref remoteIpEndPoint);
-                        if (receivebytes[0] == 46)
-                        {
-                            // set the zones count of bulb
-                            bulb.Zones = receivebytes[36];
-                        }
+                        // set the zones count of bulb
+                        bulb.Zones = receivebytes[36];
                     }
+                }
             }
 
             _receivingUdpClient.Close();
@@ -182,7 +197,8 @@ namespace MaxLifx.Controllers
         {
             _localIp = ip;
             _sendToAddress = IPAddress.Parse(ip);
-            _sendingEndPoint = new IPEndPoint(_sendToAddress, 56700);
+            _localEndPoint = new IPEndPoint(IPAddress.Any, 56700);
+            _broadcastEndPoint = new IPEndPoint(_sendToAddress, 56700);
         }
     }
 }
