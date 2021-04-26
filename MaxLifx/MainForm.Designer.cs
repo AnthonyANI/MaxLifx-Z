@@ -67,10 +67,10 @@
             this.turnOffAllToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.panicToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
+            this.advancedDiscoverToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.notifyIcon1 = new System.Windows.Forms.NotifyIcon(this.components);
             this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.advancedDiscoverToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.groupBox3.SuspendLayout();
             this.gbMonitors.SuspendLayout();
             this.gbSequencer.SuspendLayout();
@@ -153,6 +153,7 @@
             this.lvThreads.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.columnHeader1,
             this.columnHeader2});
+            this.lvThreads.HideSelection = false;
             this.lvThreads.Location = new System.Drawing.Point(6, 19);
             this.lvThreads.MultiSelect = false;
             this.lvThreads.Name = "lvThreads";
@@ -438,6 +439,13 @@
             this.toolStripSeparator2.Name = "toolStripSeparator2";
             this.toolStripSeparator2.Size = new System.Drawing.Size(172, 6);
             // 
+            // advancedDiscoverToolStripMenuItem
+            // 
+            this.advancedDiscoverToolStripMenuItem.Name = "advancedDiscoverToolStripMenuItem";
+            this.advancedDiscoverToolStripMenuItem.Size = new System.Drawing.Size(175, 22);
+            this.advancedDiscoverToolStripMenuItem.Text = "Advanced Discover";
+            this.advancedDiscoverToolStripMenuItem.Click += new System.EventHandler(this.advancedDiscoverToolStripMenuItem_Click);
+            // 
             // aboutToolStripMenuItem
             // 
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
@@ -466,13 +474,6 @@
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Running Threads";
             // 
-            // advancedDiscoverToolStripMenuItem
-            // 
-            this.advancedDiscoverToolStripMenuItem.Name = "advancedDiscoverToolStripMenuItem";
-            this.advancedDiscoverToolStripMenuItem.Size = new System.Drawing.Size(175, 22);
-            this.advancedDiscoverToolStripMenuItem.Text = "Advanced Discover";
-            this.advancedDiscoverToolStripMenuItem.Click += new System.EventHandler(this.advancedDiscoverToolStripMenuItem_Click);
-            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -494,6 +495,7 @@
             this.Controls.Add(this.groupBox3);
             this.Controls.Add(this.menuStrip1);
             this.MainMenuStrip = this.menuStrip1;
+            this.MaximizeBox = false;
             this.MaximumSize = new System.Drawing.Size(450, 505);
             this.MinimumSize = new System.Drawing.Size(450, 505);
             this.Name = "MainForm";

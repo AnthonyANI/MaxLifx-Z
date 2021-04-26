@@ -86,7 +86,7 @@ namespace MaxLifx
             {
                 var dialogResult =
                     MessageBox.Show(
-                        "No bulbs discovered. Run bulb discovery now? The app willl hang for about ten seconds."
+                        "No bulbs discovered. Run bulb discovery now? The app will hang for about ten seconds."
                         , "Discover bulbs?",
                         MessageBoxButtons.YesNo);
 

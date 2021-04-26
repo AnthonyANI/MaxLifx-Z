@@ -44,7 +44,7 @@ namespace MaxLifx
                 var processorName = "MaxLifx." + typeName.Replace("Settings", "Processor");
                 var processorType = Type.GetType(processorName);
                 var processorConstructor = processorType.GetConstructor(Type.EmptyTypes);
-                Processor = (IProcessor) (processorConstructor.Invoke(new object[] {}));
+                Processor = (IProcessor) processorConstructor.Invoke(new object[] {});
 
                 Processor.SettingsAsXml = value;
             }
